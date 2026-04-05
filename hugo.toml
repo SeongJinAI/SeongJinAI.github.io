@@ -1,0 +1,72 @@
+baseURL = "https://SeongJinAI.github.io/"
+title = "AI Automation Architecture"
+theme = "PaperMod"
+defaultContentLanguage = "ko"
+defaultContentLanguageInSubdir = true
+
+[params]
+  author = "SeongJin Ha"
+  description = "AI를 활용한 업무 자동화 아키텍처 포트폴리오"
+  ShowBreadCrumbs = true
+  ShowReadingTime = true
+  ShowShareButtons = true
+  ShowPostNavLinks = true
+  ShowCodeCopyButtons = true
+  ShowToc = true
+  TocOpen = true
+
+[params.homeInfoParams]
+  Title = "AI Automation Architecture"
+  Content = "AI를 활용한 업무 자동화 시스템 설계 및 구현 포트폴리오"
+
+[languages]
+  [languages.ko]
+    languageName = "한국어"
+    weight = 1
+    title = "AI 자동화 아키텍처"
+    [languages.ko.params]
+      description = "AI를 활용한 업무 자동화 아키텍처 포트폴리오"
+    [languages.ko.params.homeInfoParams]
+      Title = "AI 자동화 아키텍처"
+      Content = "AI를 활용한 업무 자동화 시스템 설계 및 구현 포트폴리오"
+    [[languages.ko.menu.main]]
+      name = "포스트"
+      url = "/ko/posts/"
+      weight = 1
+    [[languages.ko.menu.main]]
+      name = "태그"
+      url = "/ko/tags/"
+      weight = 2
+    [[languages.ko.menu.main]]
+      name = "English"
+      url = "/en/"
+      weight = 3
+
+  [languages.en]
+    languageName = "English"
+    weight = 2
+    title = "AI Automation Architecture"
+    [languages.en.params]
+      description = "Portfolio of AI-powered workflow automation architecture"
+    [languages.en.params.homeInfoParams]
+      Title = "AI Automation Architecture"
+      Content = "Portfolio of AI-powered workflow automation system design and implementation"
+    [[languages.en.menu.main]]
+      name = "Posts"
+      url = "/en/posts/"
+      weight = 1
+    [[languages.en.menu.main]]
+      name = "Tags"
+      url = "/en/tags/"
+      weight = 2
+    [[languages.en.menu.main]]
+      name = "한국어"
+      url = "/ko/"
+      weight = 3
+
+[markup]
+  [markup.highlight]
+    style = "monokai"
+    lineNos = true
+  [markup.goldmark.renderer]
+    unsafe = true
