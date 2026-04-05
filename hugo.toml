@@ -1,23 +1,44 @@
 baseURL = "https://SeongJinAI.github.io/"
 title = "AI Automation Architecture"
-theme = "PaperMod"
+theme = "Stack"
 defaultContentLanguage = "ko"
 defaultContentLanguageInSubdir = true
+[pagination]
+  pagerSize = 10
+hasCJKLanguage = true
 
 [params]
-  author = "SeongJin Ha"
-  description = "AI를 활용한 업무 자동화 아키텍처 포트폴리오"
-  ShowBreadCrumbs = true
-  ShowReadingTime = true
-  ShowShareButtons = true
-  ShowPostNavLinks = true
-  ShowCodeCopyButtons = true
-  ShowToc = true
-  TocOpen = true
+  mainSections = ["posts"]
+  favicon = "/favicon.ico"
+  description = "AI를 활용한 업무 자동화 아키텍처 설계 포트폴리오"
 
-[params.homeInfoParams]
-  Title = "AI Automation Architecture"
-  Content = "AI를 활용한 업무 자동화 시스템 설계 및 구현 포트폴리오"
+  [params.footer]
+    since = 2026
+
+  [params.dateFormat]
+    published = "2006.01.02"
+    lastUpdated = "2006.01.02"
+
+  [params.sidebar]
+    emoji = ""
+    subtitle = "AI Systems Architect"
+
+  [params.article]
+    math = false
+    toc = true
+    readingTime = true
+
+  [params.comments]
+    enabled = false
+
+  [[params.widgets.homepage]]
+    type = "search"
+  [[params.widgets.homepage]]
+    type = "categories"
+  [[params.widgets.homepage]]
+    type = "tag-cloud"
+  [[params.widgets.page]]
+    type = "toc"
 
 [languages]
   [languages.ko]
@@ -26,22 +47,34 @@ defaultContentLanguageInSubdir = true
     title = "AI 자동화 아키텍처"
     contentDir = "content/ko"
     [languages.ko.params]
-      description = "AI를 활용한 업무 자동화 아키텍처 포트폴리오"
-    [languages.ko.params.homeInfoParams]
-      Title = "AI 자동화 아키텍처"
-      Content = "AI를 활용한 업무 자동화 시스템 설계 및 구현 포트폴리오"
+      description = "AI를 활용한 업무 자동화 아키텍처 설계 포트폴리오"
+      [languages.ko.params.sidebar]
+        emoji = ""
+        subtitle = "AI 시스템 아키텍트"
     [[languages.ko.menu.main]]
-      name = "포스트"
-      url = "/ko/posts/"
+      name = "홈"
+      url = "/ko/"
       weight = 1
+      [languages.ko.menu.main.params]
+        icon = "home"
+    [[languages.ko.menu.main]]
+      name = "아키텍처"
+      url = "/ko/posts/"
+      weight = 2
+      [languages.ko.menu.main.params]
+        icon = "archives"
     [[languages.ko.menu.main]]
       name = "태그"
       url = "/ko/tags/"
-      weight = 2
+      weight = 3
+      [languages.ko.menu.main.params]
+        icon = "tag"
     [[languages.ko.menu.main]]
       name = "English"
       url = "/en/"
-      weight = 3
+      weight = 4
+      [languages.ko.menu.main.params]
+        icon = "language"
 
   [languages.en]
     languageName = "English"
@@ -49,26 +82,50 @@ defaultContentLanguageInSubdir = true
     title = "AI Automation Architecture"
     contentDir = "content/en"
     [languages.en.params]
-      description = "Portfolio of AI-powered workflow automation architecture"
-    [languages.en.params.homeInfoParams]
-      Title = "AI Automation Architecture"
-      Content = "Portfolio of AI-powered workflow automation system design and implementation"
+      description = "Portfolio of AI-powered workflow automation architecture design"
+      [languages.en.params.sidebar]
+        emoji = ""
+        subtitle = "AI Systems Architect"
     [[languages.en.menu.main]]
-      name = "Posts"
-      url = "/en/posts/"
+      name = "Home"
+      url = "/en/"
       weight = 1
+      [languages.en.menu.main.params]
+        icon = "home"
+    [[languages.en.menu.main]]
+      name = "Architecture"
+      url = "/en/posts/"
+      weight = 2
+      [languages.en.menu.main.params]
+        icon = "archives"
     [[languages.en.menu.main]]
       name = "Tags"
       url = "/en/tags/"
-      weight = 2
+      weight = 3
+      [languages.en.menu.main.params]
+        icon = "tag"
     [[languages.en.menu.main]]
       name = "한국어"
       url = "/ko/"
-      weight = 3
+      weight = 4
+      [languages.en.menu.main.params]
+        icon = "language"
 
 [markup]
   [markup.highlight]
-    style = "monokai"
+    style = "dracula"
     lineNos = true
+    guessSyntax = true
   [markup.goldmark.renderer]
     unsafe = true
+
+[related]
+  includeNewer = true
+  threshold = 60
+  toLower = false
+  [[related.indices]]
+    name = "tags"
+    weight = 100
+  [[related.indices]]
+    name = "categories"
+    weight = 200
