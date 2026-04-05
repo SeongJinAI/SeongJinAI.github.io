@@ -1,5 +1,5 @@
 ---
-title: "Sentry 기반 서버 에러 자동 진단 및 핫픽스 파이프라인"
+title: "서버 에러 자동 핫픽스 시스템 — Sentry 감지부터 PR 생성까지"
 date: 2026-04-05T00:00:00+09:00
 draft: false
 tags: ["Claude Code", "Sentry", "Slack", "GitHub Actions", "CI/CD"]

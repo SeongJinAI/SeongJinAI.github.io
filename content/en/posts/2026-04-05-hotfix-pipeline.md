@@ -1,5 +1,5 @@
 ---
-title: "AI-Powered Server Error Auto-Diagnosis & Hotfix Pipeline"
+title: "Automated Server Error Hotfix System — From Sentry Detection to PR Generation"
 date: 2026-04-05T00:00:00+09:00
 draft: false
 tags: ["Claude Code", "Sentry", "Slack", "GitHub Actions", "CI/CD"]

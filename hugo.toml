@@ -25,7 +25,7 @@ hasCJKLanguage = true
 
   [params.article]
     math = false
-    toc = true
+    toc = false
     readingTime = true
 
   [params.comments]
@@ -37,8 +37,6 @@ hasCJKLanguage = true
     type = "categories"
   [[params.widgets.homepage]]
     type = "tag-cloud"
-  [[params.widgets.page]]
-    type = "toc"
 
 [languages]
   [languages.ko]
