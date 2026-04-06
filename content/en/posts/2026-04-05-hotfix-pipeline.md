@@ -192,17 +192,59 @@ Time: 5min analysis + approval wait + 3min fix/PR
 
 ---
 
-## Developer Interaction — Minimal Intervention Design
+## Design Philosophy — SOTT (Scoped One-Time Task)
 
-Only **3 points** in the entire pipeline require developer action:
+The fundamental principle: **AI analyzes and suggests, but the developer always makes the final decision.**
 
-| # | Point | Action | Time |
-|---|-------|--------|------|
-| 1 | Approve fix plan | Review Slack message → approve/reject | 1 min |
-| 2 | Execute DB SQL | Copy delivered SQL → run on DB | 1 min |
-| 3 | Final PR merge | Review Codex comments → merge to dev | 2 min |
+The AI agent doesn't receive unlimited authority. For each detected error, it receives **"only for this error, only within this scope"** — a limited, one-time authorization. This is the SOTT (Scoped One-Time Task) pattern.
 
-Everything else (detection, analysis, classification, code fix, branch management, PR creation, review response) is **fully automated**.
+```
+                    ┌──────────────┐
+                    │ Error occurs  │
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │ AI auto-     │ ← No permission needed (read-only)
+                    │ analysis +   │
+                    │ plan         │
+                    └──────┬───────┘
+                           ▼
+                 ┌─────────────────────┐
+                 │ Developer approval   │ ← "Fix THIS error only"
+                 │ (SOTT grant)        │
+                 │ Scope: single error  │
+                 │ Auth: hotfix branch  │
+                 │ Expires: on PR       │
+                 └─────────┬───────────┘
+                           ▼
+                    ┌──────────────┐
+                    │ AI auto-fix  │ ← Executes within approved scope only
+                    │ branch + PR  │
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │ Developer    │ ← Reviews code, decides to merge
+                    │ final merge  │
+                    └──────────────┘
+```
+
+### Why Not Full Automation?
+
+DB SQL execution and code merges are **hard to reverse**. Even if AI is 99% accurate, the 1% misjudgment could corrupt production data. Therefore:
+
+- **Analysis/planning is automated** — AI's strongest domain (pattern matching, code search)
+- **Execution decisions are human** — final gate for irreversible actions
+- **Repetitive work is automated** — branch creation, commits, PR, review response
+
+### Developer Intervention Points (Only 3)
+
+| # | Point | SOTT Scope | Time |
+|---|-------|-----------|------|
+| 1 | **Approve fix plan** | "Fix this error using this approach" | 1 min |
+| 2 | **Execute DB SQL** | "Run this SQL on production DB" | 1 min |
+| 3 | **Final PR merge** | "Deploy this code to dev" | 2 min |
+
+Everything else (detection, analysis, classification, code fix, branch management, PR creation, review response) is **fully automated**. The developer only **makes decisions** — AI handles the execution.
 
 ---
 
