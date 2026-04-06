@@ -4,171 +4,170 @@ date: 2026-04-05T00:00:00+09:00
 draft: false
 tags: ["Claude Code", "Sentry", "Slack", "GitHub Actions", "CI/CD"]
 categories: ["AI Automation Pipeline"]
-description: "An end-to-end hotfix automation system where AI automatically detects server errors, classifies them by type, and generates DB SQL fixes or code PR accordingly"
+description: "An AI-powered system that automatically detects server errors, classifies them by type, and delivers DB fix SQL or generates code fix PRs"
 image: ""
 ---
 
 ## Problem Statement
 
-Operating a construction ERP system, every server error triggers a repetitive cycle for developers:
+When a server error occurs in production, developers repeat the same cycle every time:
 
 ```
-Check Slack alert → SSH into server → Analyze Docker logs → Parse stacktrace
-→ Search codebase → Identify root cause → Fix code → Commit → PR → Review → Merge → Deploy
+Check alert → SSH into server → Analyze logs → Identify cause → Fix → Test → PR → Review → Deploy
 ```
 
-Each error takes **30 minutes to several hours** to resolve. Even simple issues like DB schema mismatches require the same full process — a significant inefficiency.
+Each error takes **30 minutes to several hours** to resolve. The bigger problem: over half of all errors are simple issues like DB schema mismatches that **don't even require code changes** — yet they still go through the same process.
 
-**This pipeline automates the entire process with AI.**
+This system automates the entire process with AI.
 
 ---
 
 ## Core Design — Automatic Error Type Routing
 
-The most critical design decision is **automatically classifying errors by type and routing them to different resolution paths**. Not all errors are treated the same.
+Not all errors are treated the same. The system analyzes error messages to **automatically classify the type** and routes each to a completely different resolution path.
 
 | Type | Detection Criteria | Response | Developer Action |
 |------|-------------------|----------|-----------------|
-| **DB Error** | `Unknown column`, `Data too long`, schema mismatch | ALTER SQL delivered via Slack | Execute SQL only |
-| **Code Error** | NPE, RuntimeException, logic bugs | Auto-analysis → Fix plan → PR creation | Approve plan + Merge PR |
-| **Mixed** | Entity↔DB column mismatch | SQL (Slack) + PR (code) simultaneously | Execute SQL + Merge PR |
+| **DB Error** | Missing column, type mismatch, schema error | Fix SQL delivered via Slack | Execute SQL only |
+| **Code Error** | NPE, logic bugs, validation gaps | AI fixes code and creates PR | Approve plan + merge PR |
+| **Mixed** | Code and DB both misaligned | SQL (Slack) + PR (code) simultaneously | Execute SQL + merge PR |
 
-Why this matters: **DB errors cannot be fixed by modifying code.** Previously, developers would check code first, realize it's a DB issue, then write SQL — wasted time. This system identifies the type instantly from the error message.
+Why this matters: **DB errors cannot be fixed by modifying code.** Previously, developers would check code first, then realize it's a DB issue — wasted time. This system identifies the type instantly from error message patterns.
 
 ---
 
 ## System Architecture
 
-> Architecture diagrams will be created with draw.io. Currently described in text format.
+> Architecture diagrams will be created with draw.io.
 
 ### End-to-End Flow
 
 ```
-┌──────────────┐     ┌���─────────┐     ┌──────────┐
-│  ERP Server  │────→│  Sentry  │────→│  Slack   │
-│  (EC2/Docker)│     │ (capture)│     │ (alert)  ��
-└────────────���─┘     └──────────┘     └────┬─────┘
+┌──────────────┐     ┌──────────┐     ┌──────────┐
+│   Server     │────→│  Sentry  │────→│  Slack   │
+│              │     │ (capture)│     │ (alert)  │
+└──────────────┘     └──────────┘     └────┬─────┘
                                            │
                      ┌─────────────────────┘
                      ▼
          ┌───────────────────────┐
-         │   Claude Code Agent   │
-         │  (Scheduled Trigger)  │
+         │   AI Agent            │
+         │  (periodic monitor)   │
          │                       │
-         │  ① Query Sentry API   │
+         │  ① Detect new errors  │
          │  ② Parse stacktrace   │
          │  ③ Search codebase    │
-         │  ④ Classify error     │
-         └───────���───────────────┘
+         │  ④ Classify type      │
+         └───────┬───────────────┘
                  │
         ┌────────┼────────┐
         ▼        ▼        ▼
    ┌────────┐ ┌──────┐ ┌──────┐
    │   DB   │ │ Code │ │Mixed │
-   ��� Error  │ │Error │ │      │
-   └───┬────┘ └──┬─��─┘ └──┬───┘
-       │         │         │
-       ▼         ��         ▼
+   └───┬────┘ └──┬───┘ └──┬───┘
+       ▼         ▼         ▼
    ┌────────┐ ┌──────┐ ┌──────────┐
    │ Slack  │ │  PR  │ │Slack+PR  │
    │SQL fix │ │create│ │  both    │
    └────────┘ └──┬───┘ └──────────┘
-                 │
                  ▼
          ┌───────────────┐
-         │  Codex Review  │
-         │  (auto-review) │
-         └───��───┬───────┘
-                 │
+         │  Auto code    │
+         │  review       │
+         └───────┬───────┘
                  ▼
          ┌───────────────┐
-         │   Developer   │
-         │ final + merge │
+         │  Developer    │
+         │  final merge  │
          └───────────────┘
 ```
 
-### Component Responsibilities
+### Components
 
 | Component | Role | Technology |
 |-----------|------|-----------|
-| **Error Collection** | Capture server exceptions + preserve stacktraces | Sentry |
-| **Notification** | Instant developer alerts + AI analysis delivery | Slack Webhook |
-| **Error Analysis** | Stacktrace parsing → codebase search → root cause | Claude Code (Opus) |
-| **Type Classification** | Auto-detect DB/Code/Mixed from error patterns | Rule-based + AI |
-| **Code Fix** | Auto-fix following project code style guide | Claude Code |
-| **PR Management** | Branch → Commit → PR → Review response | GitHub CLI |
-| **Code Review** | Automated PR review on creation | GPT Codex (GitHub Actions) |
-| **Deployment** | dev merge → auto-deploy | AWS ECR + EC2 Docker |
+| Error Collection | Capture server exceptions, preserve stacktraces | Sentry |
+| Notification | Instant alerts to developer + AI simultaneously | Slack Webhook |
+| AI Analysis | Parse stacktrace → search code → identify cause → classify type | Claude Code |
+| Code Fix | Auto-fix following project conventions | Claude Code |
+| PR Management | Branch → commit → PR → address reviews | GitHub CLI |
+| Code Review | Automated review on PR creation | GPT Codex |
+| Deployment | dev merge → auto-deploy | Docker + CI/CD |
 
 ---
 
-## Detailed Error Type Handling
+## Error Type Handling
 
-### Type A: DB Errors → SQL Delivered via Slack (No PR)
+### Type A: DB Errors — SQL Delivered Directly (No Code Changes)
 
-DB-level issues cannot be resolved with code changes. The AI compares Entity definitions against actual DB DDL to generate precise ALTER SQL.
+DB-level issues cannot be resolved with code changes. The AI compares application schema definitions against the actual DB state to generate precise fix SQL.
 
-**Auto-Detection Logic:**
+**Auto-Detection:**
+- "Unknown column" → missing column
+- "Data too long" → type/size mismatch
+- "Table doesn't exist" → table not created
 
+**Flow:**
 ```
-Error message analysis
-  ├─ "Unknown column '{col}'" → Check @Column in Entity → Compare DDL → Generate ALTER TABLE
-  ├─ "Data too long for column" → Compare parameter/column sizes → Generate expansion SQL
-  └─ "Table '{table}' doesn't exist" → Generate CREATE TABLE from Entity
-```
-
-**Production Case Study:**
-
-After deploying a certificate issuance feature, the PDF document URL column was missing from the production database.
-
-```
-Error: SQLSyntaxErrorException
-       Unknown column 'aih1_0.DocumentUrl' in 'SELECT'
-
-AI Analysis (automatic):
-  ① Entity: @Column(name = "DocumentUrl") — defined
-  ② DDL file: DocumentUrl VARCHAR(500) — defined
-  ③ Production DB: column missing — migration not executed
-
-Slack Delivery (automatic):
-  ALTER TABLE AttestationIssueHistory
-      ADD COLUMN DocumentUrl VARCHAR(500) NULL
-      COMMENT 'Certificate document URL' AFTER SealName;
-
-Time to resolution: Under 2 minutes from detection
+Error detected → Schema definition vs DB comparison → Generate ALTER SQL → Deliver via Slack → Developer executes SQL
 ```
 
-Developer simply **executes the delivered SQL** — immediate resolution.
+DB errors don't need PRs — **resolved with a single Slack message**. What used to take 30 minutes (SSH → log analysis → write SQL) now takes **under 2 minutes**.
 
-### Type B: Code Errors → Analysis + Fix + Auto PR
+### Type B: Code Errors — Auto-Analysis + PR Generation
 
-For code-level bugs, the AI traces the stacktrace, identifies the root cause, creates a fix plan, and generates a PR after developer approval.
+For code-level bugs, the AI traces the stacktrace to identify the root cause, creates a fix plan, and generates a PR after developer approval.
 
-**Production Case Study:**
+**Flow:**
+```
+Error detected → Trace stacktrace → Analyze code → Create fix plan → Share via Slack
+→ Developer approval → Create branch → Fix code → PR → Code review → Address reviews
+→ Developer final merge
+```
 
-Employee information update was failing because Employee→User sync threw an exception, rolling back the entire transaction.
+### Type C: Mixed — SQL + PR Simultaneously
+
+When both application definitions and DB are misaligned, fixes are processed in parallel.
+
+---
+
+## Design Philosophy — SOTT (Scoped One-Time Task)
+
+The fundamental principle: **AI analyzes and suggests, but the developer always makes the final decision.**
+
+The AI doesn't receive unlimited authority. For each error, it receives **"only for this error, only within this scope"** — a limited, one-time authorization.
 
 ```
-Error: BusinessException (ERR_NOT_EXISTS_SYNCED_USER)
-
-AI Analysis (automatic):
-  ① Traced EmployeeUserSyncService.syncOnEmployeeUpdate()
-  ② User lookup by juminNumber → orElseThrow() → fails
-  ③ Root cause: juminNumber format mismatch (with/without hyphen)
-  ④ Secondary issue: sync failure blocks the employee update itself
-
-Fix Plan (shared via Slack/Notion):
-  - Add old → new juminNumber fallback lookup
-  - If not found: Sentry alert + return (update proceeds normally)
-  - Add juminNumber sync to User.syncFromEmployee
-
-After approval:
-  → Branch: hotfix/employee-sync-jumin
-  → 3 files modified (Service, Entity, ErrorCode)
-  → PR created → Codex review → merge
-
-Time: 5min analysis + approval wait + 3min fix/PR
+  Error occurs → AI auto-analysis (no permission needed, read-only)
+                        ↓
+             Developer approval (SOTT grant)
+             "Fix this error using this approach"
+             Scope: this specific error only
+             Auth: hotfix branch only
+             Expires: on PR creation
+                        ↓
+             AI auto-fix (within approved scope only)
+                        ↓
+             Developer final merge decision
 ```
+
+### Why Not Full Automation?
+
+DB SQL execution and code merges are **hard to reverse**. Even 99% AI accuracy means 1% misjudgment could corrupt production data.
+
+- **Analysis and planning: automated** — AI's strongest domain
+- **Execution decisions: human** — final gate for irreversible actions
+- **Repetitive work: automated** — branch creation, commits, PR, review response
+
+### Developer Intervention Points (Only 3)
+
+| # | Point | SOTT Scope | Time |
+|---|-------|-----------|------|
+| 1 | **Approve fix plan** | Fix this error using this approach | 1 min |
+| 2 | **Execute DB SQL** | Run this SQL on production DB | 1 min |
+| 3 | **Final PR merge** | Deploy this code to production | 2 min |
+
+Everything else is **fully automated**. The developer only **makes decisions** — AI handles the execution.
 
 ---
 
@@ -178,73 +177,16 @@ Time: 5min analysis + approval wait + 3min fix/PR
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|------------|
-| DB error avg. resolution | 30 min (SSH→analyze→write SQL) | **2 min** (SQL auto-delivered) | **93% reduction** |
-| Code error avg. resolution | 1-2 hours | **10 min** (auto-analysis + PR) | **83-91% reduction** |
-| Root cause accuracy | Depends on developer experience | Entity↔DDL auto-comparison | Misdiagnosis eliminated |
-| Off-hours initial response | Next business day | **Immediate** (Scheduled Trigger) | Response gap eliminated |
+| DB error avg. resolution | 30 min | **2 min** | **93%** |
+| Code error avg. resolution | 1-2 hours | **10 min** | **83-91%** |
+| Off-hours initial response | Next business day | **Immediate** | Response gap eliminated |
 
 ### Qualitative Improvements
 
-- **Minimized context switching**: AI handles error analysis, developers stay focused on feature development
-- **Automatic DB vs Code classification**: Eliminates time wasted debugging in the wrong direction
-- **Consistent fix quality**: Auto-fixes follow project code style guides
-- **Automatic history management**: All analysis/fix records auto-logged in Notion + Git
-
----
-
-## Design Philosophy — SOTT (Scoped One-Time Task)
-
-The fundamental principle: **AI analyzes and suggests, but the developer always makes the final decision.**
-
-The AI agent doesn't receive unlimited authority. For each detected error, it receives **"only for this error, only within this scope"** — a limited, one-time authorization. This is the SOTT (Scoped One-Time Task) pattern.
-
-```
-                    ┌──────────────┐
-                    │ Error occurs  │
-                    └──────┬───────┘
-                           ▼
-                    ┌──────────────┐
-                    │ AI auto-     │ ← No permission needed (read-only)
-                    │ analysis +   │
-                    │ plan         │
-                    └──────┬───────┘
-                           ▼
-                 ┌─────────────────────┐
-                 │ Developer approval   │ ← "Fix THIS error only"
-                 │ (SOTT grant)        │
-                 │ Scope: single error  │
-                 │ Auth: hotfix branch  │
-                 │ Expires: on PR       │
-                 └─────────┬───────────┘
-                           ▼
-                    ┌──────────────┐
-                    │ AI auto-fix  │ ← Executes within approved scope only
-                    │ branch + PR  │
-                    └──────┬───────┘
-                           ▼
-                    ┌──────────────┐
-                    │ Developer    │ ← Reviews code, decides to merge
-                    │ final merge  │
-                    └──────────────┘
-```
-
-### Why Not Full Automation?
-
-DB SQL execution and code merges are **hard to reverse**. Even if AI is 99% accurate, the 1% misjudgment could corrupt production data. Therefore:
-
-- **Analysis/planning is automated** — AI's strongest domain (pattern matching, code search)
-- **Execution decisions are human** — final gate for irreversible actions
-- **Repetitive work is automated** — branch creation, commits, PR, review response
-
-### Developer Intervention Points (Only 3)
-
-| # | Point | SOTT Scope | Time |
-|---|-------|-----------|------|
-| 1 | **Approve fix plan** | "Fix this error using this approach" | 1 min |
-| 2 | **Execute DB SQL** | "Run this SQL on production DB" | 1 min |
-| 3 | **Final PR merge** | "Deploy this code to dev" | 2 min |
-
-Everything else (detection, analysis, classification, code fix, branch management, PR creation, review response) is **fully automated**. The developer only **makes decisions** — AI handles the execution.
+- **Minimized context switching** — AI handles error analysis, developers stay focused on features
+- **Automatic DB vs code classification** — eliminates debugging in the wrong direction
+- **Consistent fix quality** — auto-fixes follow project code conventions
+- **Automatic history management** — all analysis/fix records auto-logged
 
 ---
 
@@ -252,13 +194,13 @@ Everything else (detection, analysis, classification, code fix, branch managemen
 
 | Layer | Tool | Rationale |
 |-------|------|-----------|
-| Error Collection | **Sentry** | Stacktrace preservation, API access, issue state management |
-| Notification | **Slack Webhook** | Developers already active here, bidirectional communication |
-| AI Engine | **Claude Code (Opus)** | 1M token context, simultaneous code analysis + modification |
-| Periodic Execution | **Scheduled Trigger** | Built-in Claude Code cron, no additional infrastructure |
-| PR Management | **GitHub CLI** | Branch/commit/PR in single CLI commands |
-| Code Review | **GPT Codex** | GitHub Actions integration, auto-triggers on PR creation |
-| Deployment | **AWS ECR + EC2** | dev merge → Docker auto-deploy (existing pipeline) |
+| Error Collection | **Sentry** | Stacktrace preservation, REST API |
+| Notification | **Slack** | Developers already active here, bidirectional |
+| AI Engine | **Claude Code** | Large context window, simultaneous analysis + modification |
+| Periodic Execution | **Scheduled Trigger** | No additional infrastructure needed |
+| PR Management | **GitHub CLI** | Automate branch/commit/PR via CLI |
+| Code Review | **GPT Codex** | Auto-review on PR creation |
+| Deployment | **Docker + CI/CD** | dev merge → auto build/deploy |
 
 ---
 
@@ -268,13 +210,13 @@ Everything else (detection, analysis, classification, code fix, branch managemen
 
 | Limitation | Cause | Impact |
 |------------|-------|--------|
-| 5-10 min detection delay | Scheduled Trigger (polling) | Cannot respond instantly to P0 errors |
-| Manual approval process | Requires Slack message review | Delayed when developer is unavailable |
+| 5-10 min detection delay | Polling approach (periodic API query) | Cannot respond instantly to P0 errors |
+| Approval wait | Developer must manually review | Auto-fix delayed during absence |
 
 ### Roadmap
 
 | Phase | Improvement | Effect |
 |-------|------------|--------|
-| Phase 2 | Sentry Webhook → GitHub Actions → Claude Remote Trigger | **Real-time detection** (eliminate polling) |
-| Phase 3 | Slack Interactive Message approve/reject buttons | Approve without opening a session |
-| Phase 4 | Error pattern learning → auto-resolve recurring errors | Full automation (no approval needed) |
+| Phase 2 | Webhook-based real-time detection | Eliminate polling, instant response |
+| Phase 3 | Messenger approve/reject buttons | Approve without opening a session |
+| Phase 4 | Error pattern learning → auto-resolve | Full automation without approval |
