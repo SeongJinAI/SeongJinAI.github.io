@@ -109,7 +109,7 @@ Main Agent (Hotfix Pipeline)
     │
     ├─ Extract domain from stacktrace
     │
-    ├─ Dispatch to sub-agent ──→ HR Domain Agent
+    ├─ Dispatch to sub-agent ──→ Domain A Agent
     │                           "Analyze this error with your domain knowledge"
     │                              ├─ Entity relationship awareness
     │                              ├─ Business rule verification
@@ -121,19 +121,21 @@ Main Agent (Hotfix Pipeline)
     └─ Classify type → DB/Code/Mixed → Respond
 ```
 
-### Domain Sub-Agents
+### Sub-Agent Package Structure
 
-Each sub-agent pre-loaded with its domain's **Entity structures, business rules, API endpoints, common error patterns, and detailed technical documentation paths**.
+Domain context files are managed as a package inside the main agent. Each file contains the domain's **data models, business rules, API endpoints, error patterns, and technical documentation paths**.
 
-| Sub-Agent | Coverage |
-|-----------|----------|
-| HR Management | Employee/Worker CRUD, resignation, certificates, HR reports |
-| Payroll | Worker/employee payroll calculation, confirmation, social insurance |
-| Attendance | Clock-in/out records, statistics, facial recognition integration |
-| Construction | Projects, work stages, work types |
-| Resources | Rebar receiving, concrete pouring, equipment, 17 expense types |
-| Materials | Purchase/rental/asset, order status transitions |
-| Contracts | Contracts, progress payments, cost management |
+```
+hotfix-pipeline/
+├── AGENT.md              ← Main (domain routing + error classification)
+└── domains/
+    ├── domain-a.md       ← Domain A context
+    ├── domain-b.md       ← Domain B context
+    ├── domain-c.md       ← Domain C context
+    └── ...               ← Scales with system complexity
+```
+
+This structure provides **only the template (interface) from the governance repo** — each project fills in the actual domain knowledge. When applying to a new project, copy the package structure and write domain files.
 
 ### Why Sub-Agents?
 
@@ -144,7 +146,7 @@ Each sub-agent pre-loaded with its domain's **Entity structures, business rules,
 | Possible rule confusion between domains | Independent execution, no cross-domain confusion |
 | Same analysis depth for all errors | **Domain-tailored analysis** |
 
-In real ERP systems with 7+ domains, each containing dozens of entities and business rules, accurate analysis without sub-agents is practically impossible.
+In enterprise environments with multiple domains, each containing dozens of entities and business rules, accurate analysis without sub-agents is practically impossible.
 
 ---
 
