@@ -96,6 +96,58 @@ Why this matters: **DB errors cannot be fixed by modifying code.** Previously, d
 
 ---
 
+## Domain-Specialized Sub-Agents — Precision Through Delegation
+
+A single AI agent analyzing the entire system leads to context waste and misdiagnosis. This system employs **domain-specialized sub-agents** that receive delegated analysis tasks for their area of expertise.
+
+### Sub-Agent Routing
+
+The main agent extracts the package path from the stacktrace and automatically dispatches to the appropriate domain sub-agent.
+
+```
+Main Agent (Hotfix Pipeline)
+    │
+    ├─ Extract domain from stacktrace
+    │
+    ├─ Dispatch to sub-agent ──→ HR Domain Agent
+    │                           "Analyze this error with your domain knowledge"
+    │                              ├─ Entity relationship awareness
+    │                              ├─ Business rule verification
+    │                              ├─ Error pattern matching
+    │                              └─ Detailed spec/architecture doc reference
+    │
+    ├─ Receive analysis result
+    │
+    └─ Classify type → DB/Code/Mixed → Respond
+```
+
+### Domain Sub-Agents
+
+Each sub-agent pre-loaded with its domain's **Entity structures, business rules, API endpoints, common error patterns, and detailed technical documentation paths**.
+
+| Sub-Agent | Coverage |
+|-----------|----------|
+| HR Management | Employee/Worker CRUD, resignation, certificates, HR reports |
+| Payroll | Worker/employee payroll calculation, confirmation, social insurance |
+| Attendance | Clock-in/out records, statistics, facial recognition integration |
+| Construction | Projects, work stages, work types |
+| Resources | Rebar receiving, concrete pouring, equipment, 17 expense types |
+| Materials | Purchase/rental/asset, order status transitions |
+| Contracts | Contracts, progress payments, cost management |
+
+### Why Sub-Agents?
+
+| Single Agent | Sub-Agents |
+|-------------|------------|
+| Loads entire system into context | Loads only relevant domain knowledge |
+| Risk of losing critical info at context limits | Focused analysis with full domain depth |
+| Possible rule confusion between domains | Independent execution, no cross-domain confusion |
+| Same analysis depth for all errors | **Domain-tailored analysis** |
+
+In real ERP systems with 7+ domains, each containing dozens of entities and business rules, accurate analysis without sub-agents is practically impossible.
+
+---
+
 ## Error Type Handling
 
 ### Type A: DB Errors — SQL Delivered Directly (No Code Changes)
