@@ -249,12 +249,86 @@ Everything else is **fully automated**. The developer only **makes decisions** �
 | Layer | Tool | Rationale |
 |-------|------|-----------|
 | Error Collection | **Sentry** | Stacktrace preservation, REST API |
-| Notification | **Slack** | Developers already active here, bidirectional |
+| Notification | **Slack Webhook** | Developers already active here, bidirectional |
 | AI Engine | **Claude Code** | Large context window, simultaneous analysis + modification |
-| Periodic Execution | **Scheduled Trigger** | No additional infrastructure needed |
-| PR Management | **GitHub CLI** | Automate branch/commit/PR via CLI |
+| Remote Monitoring | **Scheduled Trigger** (Anthropic Cloud) | 24/7 serverless, no infrastructure |
+| Local Fallback | **Shell Script** + `/loop` | 10-min interval, supplementary during sessions |
+| PR Management | **GitHub CLI** | hotfix branch → dev PR automation |
 | Code Review | **GPT Codex** | Auto-review on PR creation |
 | Deployment | **Docker + CI/CD** | dev merge → auto build/deploy |
+
+---
+
+## Dual Monitoring — Remote Sentinel + Local Executor
+
+Error monitoring doesn't rely on a single point. **Remote (24/7) and local (during session)** run in parallel.
+
+### Remote Trigger (Anthropic Cloud)
+
+Every hour, a fresh sandbox is created, the repo is cloned from GitHub, and the prompt runs. **Same concept as AWS Lambda** — serverless, stateless, no memory between runs.
+
+```
+Every hour:
+  New sandbox → GitHub clone → Sentry API query
+  → Error found → Read domain sub-agent files → Analyze
+  → DB error: Send SQL to Slack
+  → Code error: Create hotfix branch → PR → Send PR link to Slack
+  → Destroy sandbox
+```
+
+**Business hours policy**: Weekdays 09:00-18:00 KST — developer monitors directly, remote auto-skips.
+
+### Local Fallback (Developer PC)
+
+```bash
+/loop 10m .claude/scripts/sentry-check.sh
+```
+
+Checks Sentry every 10 minutes while the session is open. Unlike remote, it has **DB access, local files, and instant agent invocation**.
+
+| | Remote (Sentinel) | Local (Executor) |
+|--|:----------------:|:----------------:|
+| Interval | 1 hour | 10 min |
+| Persistence | 24/7 | Session only |
+| Sentry analysis | ✅ | ✅ |
+| Domain knowledge | ✅ (GitHub clone) | ✅ (local files) |
+| Slack delivery | ✅ | ✅ |
+| PR creation | ✅ (hotfix→dev) | ✅ (hotfix→dev) |
+| DB access | ❌ | ✅ |
+
+### Future: Push-Based Instant Detection
+
+Currently polling-based. For instant detection: **Sentry Webhook → AWS Lambda → Claude RemoteTrigger run API**. Lambda acts as a bridge between Sentry's HTTP request and Claude's remote agent. Requires additional infrastructure — planned for next phase.
+
+---
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|:------:|-------|
+| Sentry API integration | ✅ | prod environment filter, Internal Integration Token |
+| Slack Webhook | ✅ | Direct SQL delivery for DB errors |
+| GitHub CLI auth | ✅ | Auto-create hotfix branch → dev PR |
+| Domain sub-agents (7) | ✅ | HR, payroll, attendance, construction, resource, material, contract |
+| Scheduled Trigger | ✅ | 10-min interval Sentry auto-check |
+| Branch protection | ✅ | Block direct push to dev/main, only hotfix→dev PR allowed |
+
+### Branch Protection — Safety Net for Auto-Fixes
+
+When AI auto-fixes code, the most important thing is **limiting the blast radius of mistakes**.
+
+```
+Allowed: hotfix/{description} branch → dev PR
+Blocked: Direct push to dev/main
+Blocked: dev → main PR creation
+```
+
+This is **enforced at 3 levels**:
+1. `CLAUDE.md` — AI aware of the rule
+2. `settings.json` Hook — Tool-level execution blocked
+3. Memory — Rule persists across sessions
+
+No matter how confident the AI is in its fix, changes won't reach dev without human review through a PR.
 
 ---
 
@@ -264,7 +338,7 @@ Everything else is **fully automated**. The developer only **makes decisions** �
 
 | Limitation | Cause | Impact |
 |------------|-------|--------|
-| 5-10 min detection delay | Polling approach (periodic API query) | Cannot respond instantly to P0 errors |
+| 10-min detection delay | Polling (Scheduled Trigger) | Cannot respond instantly to P0 errors |
 | Approval wait | Developer must manually review | Auto-fix delayed during absence |
 
 ### Roadmap
