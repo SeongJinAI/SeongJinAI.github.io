@@ -302,6 +302,95 @@ Currently polling-based. For instant detection: **Sentry Webhook → AWS Lambda 
 
 ---
 
+## Operational Policies — Rules the Agent Follows
+
+The remote trigger runs in an **isolated, stateless environment** every time. It retains no memory between runs. Stable operation in this environment requires explicit policies.
+
+### Prompt-Document Separation Architecture
+
+Instead of stuffing all rules into the trigger prompt (requiring API calls for every change), the prompt only says **"read AGENT.md and follow it"**. Detailed policies live in version-controlled markdown files.
+
+```
+trigger-prompt.md (prompt source, git-tracked)
+    │
+    └─ "Read AGENT.md first"
+         │
+         ├─ Mandatory execution rules
+         ├─ Error classification policy
+         ├─ Slack message templates
+         ├─ Deduplication policy
+         └─ domains/*.md (domain knowledge)
+```
+
+Policy changes require **only editing md files in the repo** — next execution picks them up automatically. No trigger redeployment needed.
+
+### 9-Step Execution Checklist
+
+The agent must follow this sequence for every issue:
+
+```
+□ 1. Query Sentry — unresolved + unassigned + prod
+□ 2. Get latest event
+□ 3. Extract package path from stacktrace
+□ 4. Classify error type (decision tree)
+□ 5. Read matching domain md file ← mandatory
+□ 6. Analyze root cause using domain context
+□ 7. Execute response (DB→SQL / CODE→PR / MIXED→both)
+□ 8. Send Slack message (apply template)
+□ 9. Assign Sentry issue (prevent duplicates)
+```
+
+Step 5 (reading domain md) is critical. Each domain file contains entity relationships, business rules, and common error patterns — accurate root cause analysis requires this context.
+
+### Error Classification Decision Tree
+
+```
+Error message analysis
+│
+├─ SQL keywords? ("Unknown column", "Data too long", "Table doesn't exist")
+│   ├─ Entity @Column exists + DB column missing → MIXED
+│   └─ Other → DB
+│
+├─ DataIntegrityViolationException?
+│   ├─ NOT NULL / UNIQUE violation → CODE (validation gap)
+│   └─ Column type mismatch → DB
+│
+├─ NullPointerException / RuntimeException → CODE
+│
+└─ Other → CODE (default)
+```
+
+### Slack Message Templates
+
+Each error type has a fixed format. Required fields: **severity, Sentry ID, original error message, root cause analysis, solution**.
+
+| Type | Emoji | Key Content |
+|------|:-----:|------------|
+| DB | 🔴 | Fix SQL + Entity/DDL reference |
+| CODE | 🟡 | Root cause + PR link + modified files |
+| MIXED | 🟠 | SQL (immediate) + PR (if needed) |
+
+### Deduplication — Sentry Assign Strategy
+
+In a stateless environment, reporting the same issue every hour creates noise. We use **Sentry's assign feature** as external state storage.
+
+```
+Query: is:unresolved + !is:assigned + environment:prod
+       → Returns only unprocessed issues
+
+Process: Analyze → Send Slack → Create PR
+
+Complete: PUT /issues/{id}/ {"assignedTo": "..."}
+          → Excluded from next run
+
+Recurrence: Developer resolves → Error recurs → Sentry auto-reopens
+            → unresolved + unassigned → Detected again
+```
+
+This creates a **natural circulation** even in a stateless serverless environment.
+
+---
+
 ## Implementation Status
 
 | Component | Status | Notes |
@@ -310,8 +399,13 @@ Currently polling-based. For instant detection: **Sentry Webhook → AWS Lambda 
 | Slack Webhook | ✅ | Direct SQL delivery for DB errors |
 | GitHub CLI auth | ✅ | Auto-create hotfix branch → dev PR |
 | Domain sub-agents (7) | ✅ | HR, payroll, attendance, construction, resource, material, contract |
-| Scheduled Trigger | ✅ | 10-min interval Sentry auto-check |
+| Scheduled Trigger | ✅ | Hourly, auto-skip during business hours |
 | Branch protection | ✅ | Block direct push to dev/main, only hotfix→dev PR allowed |
+| Execution rules | ✅ | 9-step checklist, mandatory file references |
+| Classification policy | ✅ | DB/CODE/MIXED decision tree |
+| Slack templates | ✅ | 3 types with required fields |
+| Deduplication | ✅ | Sentry assign strategy |
+| Prompt-document separation | ✅ | trigger-prompt.md + AGENT.md delegation |
 
 ### Branch Protection — Safety Net for Auto-Fixes
 

@@ -301,6 +301,95 @@ DB SQL 실행과 코드 머지는 **되돌리기 어려운 작업**입니다. AI
 
 ---
 
+## 운영 정책 — 에이전트가 따르는 규칙
+
+원격 트리거는 매 실행마다 **독립 환경(stateless)**입니다. 이전 실행의 상태를 기억하지 않습니다. 이런 환경에서 안정적으로 동작하려면 명확한 운영 정책이 필요합니다.
+
+### 프롬프트-문서 분리 아키텍처
+
+트리거 프롬프트에 모든 규칙을 넣으면 수정할 때마다 API를 호출해야 합니다. 대신 프롬프트는 **"AGENT.md를 읽고 따르라"**는 지시만 담고, 상세 정책은 레포의 문서 파일에 관리합니다.
+
+```
+trigger-prompt.md (프롬프트 원본, git 추적)
+    │
+    └─ "AGENT.md를 먼저 읽어라"
+         │
+         ├─ 에이전트 실행 규칙 (MANDATORY)
+         ├─ 에러 유형 판별 정책
+         ├─ Slack 메시지 템플릿
+         ├─ 중복 보고 방지 정책
+         └─ domains/*.md (도메인 지식)
+```
+
+정책 변경 시 **레포의 md 파일만 수정**하면 다음 실행에서 자동 반영됩니다. 트리거 재배포가 필요 없습니다.
+
+### 9단계 실행 체크리스트
+
+에이전트가 이슈를 처리할 때 반드시 따르는 순서입니다.
+
+```
+□ 1. Sentry 조회 — 미해결 + 미할당 + prod
+□ 2. 최신 이벤트 조회
+□ 3. 스택트레이스에서 패키지 경로 추출
+□ 4. 에러 유형 판별 (decision tree)
+□ 5. 해당 도메인 md 파일 읽기 ← 필수
+□ 6. 도메인 컨텍스트 기반 원인 분석
+□ 7. 유형별 대응 (DB→SQL / CODE→PR / MIXED→둘 다)
+□ 8. Slack 메시지 전송 (템플릿 적용)
+□ 9. Sentry 이슈 assign (중복 방지)
+```
+
+5번(도메인 md 읽기)이 핵심입니다. 각 도메인 파일에는 Entity 관계, 비즈니스 규칙, 자주 발생하는 에러 패턴이 기록되어 있어서, 이걸 읽어야 정확한 원인 분석이 가능합니다.
+
+### 에러 유형 판별 Decision Tree
+
+```
+에러 메시지 분석
+│
+├─ SQL 키워드? ("Unknown column", "Data too long", "Table doesn't exist")
+│   ├─ Entity에 @Column 존재 + DB 컬럼 미존재 → MIXED
+│   └─ 그 외 → DB
+│
+├─ DataIntegrityViolationException?
+│   ├─ NOT NULL / UNIQUE 위반 → CODE (검증 누락)
+│   └─ 컬럼 타입 불일치 → DB
+│
+├─ NullPointerException / RuntimeException → CODE
+│
+└─ 기타 → CODE (기본값)
+```
+
+### Slack 메시지 템플릿
+
+유형별로 고정된 형식을 사용합니다. 필수 항목: **심각도, Sentry ID, 에러 원문, 원인 분석, 해결책**.
+
+| 유형 | 이모지 | 핵심 전달 내용 |
+|------|:------:|-------------|
+| DB | 🔴 | 해결 SQL + Entity/DDL 참조 |
+| CODE | 🟡 | 원인 분석 + PR 링크 + 수정 파일 |
+| MIXED | 🟠 | SQL(즉시) + PR(필요 시) |
+
+### 중복 보고 방지 — Sentry Assign 전략
+
+Stateless 환경에서 같은 이슈를 매시간 반복 보고하면 노이즈입니다. **Sentry의 assign 기능**을 외부 상태 저장소로 활용합니다.
+
+```
+조회: is:unresolved + !is:assigned + environment:prod
+       → 아직 처리되지 않은 이슈만 반환
+
+처리: 분석 → Slack 전송 → PR 생성
+
+완료: PUT /issues/{id}/ {"assignedTo": "..."}
+       → 다음 실행에서 자동 제외
+
+재발: 개발자가 resolve → 에러 재발 → Sentry 자동 reopen
+       → unresolved + unassigned → 다시 감지
+```
+
+상태를 저장하지 않는 서버리스 환경에서도 **자연스러운 순환 구조**가 만들어집니다.
+
+---
+
 ## 구현 현황
 
 | 구성 요소 | 상태 | 비고 |
@@ -309,8 +398,13 @@ DB SQL 실행과 코드 머지는 **되돌리기 어려운 작업**입니다. AI
 | Slack Webhook | ✅ | DB 에러 시 SQL 직접 전달 |
 | GitHub CLI 인증 | ✅ | hotfix 브랜치 → dev PR 자동 생성 |
 | 도메인 서브에이전트 7개 | ✅ | HR, 급여, 근태, 공사, 자원, 자재, 계약 |
-| Scheduled Trigger | ✅ | 10분 주기 Sentry 자동 체크 |
+| Scheduled Trigger | ✅ | 매 1시간, 업무시간 자동 스킵 |
 | 브랜치 보호 정책 | ✅ | dev/main 직접 push 차단, hotfix→dev PR만 허용 |
+| 에이전트 실행 규칙 | ✅ | 9단계 체크리스트, 필수 파일 참조 |
+| 에러 판별 정책 | ✅ | DB/CODE/MIXED decision tree |
+| Slack 메시지 템플릿 | ✅ | 유형별 3종, 필수 항목 정의 |
+| 중복 보고 방지 | ✅ | Sentry assign 전략 |
+| 프롬프트-문서 분리 | ✅ | trigger-prompt.md + AGENT.md 위임 |
 
 ### 브랜치 보호 — 자동 수정의 안전장치
 
