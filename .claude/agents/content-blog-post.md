@@ -106,7 +106,7 @@ GitHub Actions가 Hugo 빌드 → GitHub Pages 배포를 자동 수행합니다.
 
 ---
 
-## 민감 정보 처리 규칙
+## 민감 정보 및 도메인 내용 처리 규칙
 
 블로그는 공개이므로 다음은 절대 포함하지 않습니다:
 - API 토큰, 비밀번호, 인증 정보
@@ -115,6 +115,12 @@ GitHub Actions가 Hugo 빌드 → GitHub Pages 배포를 자동 수행합니다.
 - Notion Block ID, Sentry 프로젝트 슬러그 등 내부 식별자
 
 대신 `{SENTRY_TOKEN}`, `{SERVER_HOST}` 같은 플레이스홀더를 사용합니다.
+
+**CRITICAL — 프로젝트 도메인 내용 금지**:
+- 실제 테이블명, Entity명, 기능명 사용 금지 (철근, 커플러, 급여, 직원동기화 등)
+- `domain-a.md`, `Table A`, `Service X` 등 범용 추상화 사용
+- 에러 예시는 기술적 패턴만 설명 (유니크 제약 충돌, NPE 등), 비즈니스 맥락 제거
+- 파일명 예시: `resource_커플러삭제` → `domain-a_delete_constraint` 형식
 
 ---
 

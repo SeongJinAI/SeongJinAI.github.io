@@ -391,6 +391,40 @@ This creates a **natural circulation** even in a stateless serverless environmen
 
 ---
 
+## Issue Archiving — Error History Becomes Domain Knowledge
+
+If you just resolve errors on Sentry and move on, the same error requires full re-analysis when it recurs. This system **archives resolved issues by domain**, building the agent's knowledge over time.
+
+```
+hotfix-pipeline/
+├── AGENT.md
+├── domains/
+│   ├── domain-a.md
+│   └── domain-b.md
+└── issues/                        ← Accumulated fix history
+    ├── domain-a_delete_constraint.md
+    ├── domain-b_sync_failure.md
+    └── global_broken_pipe.md
+```
+
+**Filename convention**: `{domain}_{error_keyword}.md` — scanning the file list immediately shows which domain had what error.
+
+**Each file contains**: Sentry ID, error details (exception/API/classification), root cause, fix applied, PR link.
+
+### Accumulation Effect
+
+```
+Error recurs
+  → Agent searches issues/ folder
+  → Finds matching pattern
+  → References past fix for immediate resolution
+  → Analysis time eliminated
+```
+
+As error cases accumulate per domain, the `domains/*.md` "common error patterns" sections are periodically updated. **Issues become domain knowledge**.
+
+---
+
 ## Implementation Status
 
 | Component | Status | Notes |
